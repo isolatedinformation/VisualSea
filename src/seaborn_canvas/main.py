@@ -1,14 +1,20 @@
-from fastapi import FastAPI, File, UploadFile, Form, Request
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request, Response
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import io
-from pathlib import Path
-import base64
 import json
+import base64
+from typing import List, Optional
+from pathlib import Path
+from PIL import Image
+from io import BytesIO
+import traceback
+import numpy as np
 
 app = FastAPI()
 
@@ -21,6 +27,11 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Store uploaded data in memory
 DATA_STORE = {}
+
+class DownloadRequest(BaseModel):
+    image_data: str
+    format: str
+    filename: str
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -49,6 +60,30 @@ async def upload_file(file: UploadFile = File(...)):
             content={"error": str(e)}
         )
 
+@app.post("/columns")
+async def get_columns(file: UploadFile = File(...)):
+    try:
+        print(f"Processing file: {file.filename}")
+        contents = await file.read()
+        
+        # Read the file into a pandas DataFrame
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(contents))
+        elif file.filename.endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(io.BytesIO(contents))
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file format")
+        
+        # Get column names
+        columns = df.columns.tolist()
+        print(f"Found columns: {columns}")
+        
+        return {"columns": columns}
+        
+    except Exception as e:
+        print(f"Error processing file: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/visualize")
 async def visualize(
     file: UploadFile = File(...),
@@ -60,88 +95,194 @@ async def visualize(
     color_scheme: str = Form(...),
     use_log_scale: str = Form(...),
     legend_position: str = Form(...),
-    line_configs: str = Form(...)
+    line_configs: str = Form(...),
+    figure_width: float = Form(12.0),
+    figure_height: float = Form(8.0),
+    x_axis_label: str = Form(""),
+    y_axis_label: str = Form("")
 ):
     try:
+        print("\n=== Starting Visualization Request ===")
+        print(f"Plot Type: {plot_type}")
+        print(f"X Column: {x_column}")
+        
+        # Read the uploaded file
+        contents = await file.read()
+        df = pd.read_csv(io.BytesIO(contents)) if file.filename.endswith('.csv') else pd.read_excel(io.BytesIO(contents))
+        print(f"\nData loaded successfully: {len(df)} rows")
+        print(f"Columns: {df.columns.tolist()}")
+        print("Data types:")
+        print(df.dtypes)
+        print("\nData Preview:")
+        print(df.head())
+        
         # Parse JSON strings
         y_columns = json.loads(y_columns)
         line_configs = json.loads(line_configs)
-        use_log_scale = json.loads(use_log_scale.lower())
-
-        # Read the file
-        content = await file.read()
-        if file.filename.endswith('.csv'):
-            df = pd.read_csv(io.StringIO(content.decode()))
-        else:  # Excel files
-            df = pd.read_excel(io.BytesIO(content))
-
-        # Set style
+        use_log_scale = use_log_scale.lower() == "true"
+        
+        # Clear any existing plots
+        plt.clf()
+        plt.close('all')
+        
+        # Set style first
         sns.set_style(grid_style)
-        sns.set_palette(color_scheme)
-
-        # Create plot
-        plt.figure(figsize=(12, 8))
-
-        # Create the plot based on type
+        if color_scheme != "default":
+            sns.set_palette(color_scheme)
+        
+        # Create new figure with seaborn style
+        plt.figure(figsize=(float(figure_width), float(figure_height)))
+        
         if plot_type == "line":
-            for y_column, config in zip(y_columns, line_configs):
-                plt.plot(
-                    df[x_column],
-                    df[y_column],
-                    label=config['legendLabel'] or y_column,
-                    linestyle=config['lineStyle'],
-                    linewidth=float(config['lineWidth']),
-                    marker=config['markerStyle'] if config['markerStyle'] != 'none' else None,
-                    markersize=float(config['markerSize']) if config['markerStyle'] != 'none' else None
-                )
+            print("\nGenerating Line Plot...")
+            
+            # Process each y-column
+            for config in line_configs:
+                y_col = config['column']
+                print(f"\nProcessing column: {y_col}")
+                
+                try:
+                    # Create a copy of the data for this line
+                    plot_df = df[[x_column, y_col]].copy()
+                    print(f"Original data shape: {plot_df.shape}")
+                    
+                    # Handle month names or other categorical x-axis
+                    month_map = {
+                        'january': 1, 'february': 2, 'march': 3, 'april': 4,
+                        'may': 5, 'june': 6, 'july': 7, 'august': 8,
+                        'september': 9, 'october': 10, 'november': 11, 'december': 12
+                    }
+                    
+                    # Check if x_column contains month names
+                    if plot_df[x_column].dtype == 'object' and plot_df[x_column].iloc[0].lower() in month_map:
+                        plot_df['x_numeric'] = plot_df[x_column].str.lower().map(month_map)
+                        x_column_plot = 'x_numeric'
+                    else:
+                        # Try normal numeric conversion
+                        try:
+                            plot_df[x_column] = pd.to_numeric(plot_df[x_column], errors='raise')
+                            x_column_plot = x_column
+                        except:
+                            # If not months and not numeric, create sequential numbers
+                            plot_df['x_numeric'] = range(len(plot_df))
+                            x_column_plot = 'x_numeric'
+                    
+                    # Convert y column to numeric
+                    plot_df[y_col] = pd.to_numeric(plot_df[y_col], errors='coerce')
+                    
+                    # Remove any rows with NaN values
+                    plot_df = plot_df.dropna()
+                    print(f"Clean data shape: {plot_df.shape}")
+                    
+                    # Sort by x values for proper line connection
+                    plot_df = plot_df.sort_values(by=x_column_plot)
+                    
+                    if len(plot_df) > 0:
+                        # Use seaborn's lineplot
+                        sns.lineplot(data=plot_df, x=x_column_plot, y=y_col, label=y_col, marker='o')
+                        
+                        # If we used numeric mapping, set the original values as x-tick labels
+                        if x_column_plot == 'x_numeric':
+                            plt.xticks(plot_df[x_column_plot], plot_df[x_column], rotation=45)
+                        
+                        print(f"Line plotted successfully for {y_col}")
+                    else:
+                        print(f"Warning: No valid data points for {y_col}")
+                
+                except Exception as e:
+                    print(f"Error plotting {y_col}: {str(e)}")
+                    continue
+            
+            # Set labels and title
+            plt.xlabel(x_axis_label if x_axis_label else x_column)
+            plt.ylabel(y_axis_label if y_axis_label else ', '.join(y_columns))
+            plt.title(plot_title)
+            
+            # Set scale if needed
+            if use_log_scale:
+                plt.yscale('log')
+            
+            # Add legend
+            if legend_position != "none":
+                plt.legend(loc=legend_position)
+            
+            # Adjust layout to prevent label cutoff
+            plt.tight_layout()
+        
         elif plot_type == "scatter":
-            for y_column, config in zip(y_columns, line_configs):
-                plt.scatter(
-                    df[x_column],
-                    df[y_column],
-                    label=config['legendLabel'] or y_column,
-                    marker=config['markerStyle'] if config['markerStyle'] != 'none' else 'o',
-                    s=float(config['markerSize']) ** 2
-                )
+            for y_col in y_columns:
+                sns.scatterplot(data=df, x=x_column, y=y_col)
+                plt.grid(True, linestyle='--', alpha=0.7)
         elif plot_type == "bar":
-            plt.bar(
-                df[x_column],
-                df[y_columns[0]],
-                label=line_configs[0]['legendLabel'] or y_columns[0]
-            )
-
-        # Set title and labels
-        plt.title(plot_title, pad=20, fontsize=14)
-        plt.xlabel(x_column)
-        plt.ylabel(', '.join(y_columns))
-
-        # Set log scale if requested
-        if use_log_scale:
-            plt.yscale('log')
-
-        # Add legend if position is not 'none'
-        if legend_position.lower() != 'none':
-            plt.legend(loc=legend_position)
-
-        # Adjust layout
-        plt.tight_layout()
-
+            for y_col in y_columns:
+                sns.barplot(data=df, x=x_column, y=y_col)
+                plt.grid(True, linestyle='--', alpha=0.7)
+        elif plot_type == "box":
+            for y_col in y_columns:
+                sns.boxplot(data=df, x=x_column, y=y_col)
+                plt.grid(True, linestyle='--', alpha=0.7)
+        
+        print("\nSaving plot...")
+        
         # Save plot to bytes
         buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
-        plt.close()
-        
-        # Encode to base64
+        plt.savefig(buf, format='png', bbox_inches='tight', dpi=100, facecolor='white')
         buf.seek(0)
-        plot_base64 = base64.b64encode(buf.getvalue()).decode()
         
-        return JSONResponse(content={"plot": plot_base64})
-    
+        # Encode the bytes as base64
+        encoded = base64.b64encode(buf.getvalue()).decode()
+        print("Plot saved and encoded successfully")
+        
+        return JSONResponse(content={"plot": encoded})
+        
     except Exception as e:
-        return JSONResponse(
-            status_code=400,
-            content={"error": str(e)}
+        print(f"\nError in visualization endpoint: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    finally:
+        plt.close('all')
+        if 'buf' in locals():
+            buf.close()
+
+@app.post("/download")
+async def download_plot(request: DownloadRequest):
+    try:
+        # Decode base64 image
+        image_data = base64.b64decode(request.image_data)
+        
+        # Create a BytesIO object from the image data
+        image_stream = BytesIO(image_data)
+        
+        # Read the image with PIL
+        image = Image.open(image_stream)
+        
+        # Convert to RGB if needed (for JPG format)
+        if request.format.lower() == 'jpg':
+            image = image.convert('RGB')
+        
+        # Create a new BytesIO for the output
+        output = BytesIO()
+        
+        # Save in the requested format
+        image.save(output, format=request.format.upper())
+        output.seek(0)
+        
+        # Create the response with the appropriate filename
+        filename = f"{request.filename}.{request.format}"
+        headers = {
+            'Content-Disposition': f'attachment; filename="{filename}"'
+        }
+        
+        # Return the file response
+        return Response(
+            content=output.getvalue(),
+            headers=headers,
+            media_type=f"image/{request.format.lower()}"
         )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
