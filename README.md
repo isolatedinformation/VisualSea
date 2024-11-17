@@ -17,40 +17,9 @@ A user-friendly web application that allows non-programmers to create complex da
 - **Multi-Column Support**: Visualize multiple data columns simultaneously
 - **Responsive Design**: Works on desktop and mobile devices
 
-## Installation
+## Quicker Start
 
-### Option 1: Install from PyPI (Recommended)
-
-```bash
-pip install seaborn-canvas
-```
-
-### Option 2: Install from Source
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/seaborn-canvas.git
-   cd seaborn-canvas
-   ```
-
-2. Install the package:
-   ```bash
-   pip install -e .
-   ```
-
-## Usage
-
-### Quick Start
-
-1. Open a terminal and run:
-   ```bash
-   seaborn-canvas
-   ```
-
-2. Open your web browser and navigate to http://localhost:8000
-
-
-## Option 3: Quicker Start
+## Option 1: Quicker Start
 UNIX like systems:
 ```bash
 chmod +x install.sh
@@ -63,6 +32,34 @@ Windows:
 install.bat
 run.bat
 ```
+
+## Option 2: Install from Source
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/seaborn-canvas.git
+   cd seaborn-canvas
+   ```
+
+2. Install the package:
+   ```bash
+   pip install -e .
+   ```
+
+
+
+
+### Run
+
+1. Open a terminal and run:
+   ```bash
+   seaborn-canvas
+   ```
+
+2. Open your web browser and navigate to http://localhost:8000
+
+
+
 
 ### Advanced Usage
 
