@@ -49,6 +49,21 @@ pip install seaborn-canvas
 
 2. Open your web browser and navigate to http://localhost:8000
 
+
+## Option 3: Quicker Start
+UNIX like systems:
+```bash
+chmod +x install.sh
+./install.sh
+./run.sh
+```
+
+Windows:
+```powershell
+install.bat
+run.bat
+```
+
 ### Advanced Usage
 
 ```bash
