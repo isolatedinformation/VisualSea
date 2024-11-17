@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seaborn Visualization App</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-7xl mx-auto space-y-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Seaborn Visualization App</h1>
+
+        <!-- File Upload Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">1. Upload Your Data</h2>
+            <form id="uploadForm" class="space-y-4">
+                <div class="flex justify-center">
+                    <label class="w-full flex flex-col items-center px-4 py-6 bg-white rounded-lg shadow-lg tracking-wide border border-indigo-500 cursor-pointer hover:bg-indigo-500 hover:text-white">
+                        <svg class="w-8 h-8" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z" />
+                        </svg>
+                        <span class="mt-2 text-sm">Select a CSV file</span>
+                        <input type="file" class="hidden" id="file" accept=".csv">
+                    </label>
+                </div>
+            </form>
+        </div>
+
+        <!-- Visualization Options -->
+        <div class="bg-white rounded-lg shadow-md p-6" id="visualizationOptions">
+            <h2 class="text-xl font-semibold mb-4">2. Configure Visualization</h2>
+            <form id="visualizationForm" class="space-y-6">
+                <!-- Column Selection -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">X-Axis Column</label>
+                        <select id="xColumn" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Y-Axis Columns</label>
+                        <select id="yColumns" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" multiple>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Plot Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Plot Type</label>
+                    <select id="plotType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="line">Line Plot</option>
+                        <option value="scatter">Scatter Plot</option>
+                        <option value="bar">Bar Plot</option>
+                    </select>
+                </div>
+
+                <!-- Plot Customization Options -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Grid Style -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Grid Style</label>
+                        <select id="gridStyle" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="darkgrid">Dark Grid</option>
+                            <option value="whitegrid">White Grid</option>
+                            <option value="dark">Dark</option>
+                            <option value="white">White</option>
+                            <option value="ticks">Ticks</option>
+                        </select>
+                    </div>
+
+                    <!-- Color Scheme -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Color Scheme</label>
+                        <select id="colorScheme" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="deep">Deep</option>
+                            <option value="muted">Muted</option>
+                            <option value="pastel">Pastel</option>
+                            <option value="bright">Bright</option>
+                            <option value="dark">Dark</option>
+                            <option value="colorblind">Colorblind</option>
+                        </select>
+                    </div>
+
+                    <!-- Scale Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Scale Type</label>
+                        <select id="useLogScale" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="false">Linear</option>
+                            <option value="true">Logarithmic</option>
+                        </select>
+                    </div>
+
+                    <!-- Legend Position -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Legend Position</label>
+                        <select id="legendPosition" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="best">Best</option>
+                            <option value="upper right">Upper Right</option>
+                            <option value="upper left">Upper Left</option>
+                            <option value="lower right">Lower Right</option>
+                            <option value="lower left">Lower Left</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        Generate Visualization
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Plot Display -->
+        <div class="bg-white rounded-lg shadow-md p-6" id="plotContainer" style="display: none;">
+            <h2 class="text-xl font-semibold mb-4">3. Your Visualization</h2>
+            <div class="flex justify-center">
+                <img id="plot" class="max-w-full h-auto" src="" alt="Visualization">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Select2 when the document is ready
+        $(document).ready(function() {
+            $('#yColumns').select2({
+                placeholder: 'Select Y-axis columns',
+                multiple: true
+            });
+        });
+
+        // File upload handling
+        document.getElementById('file').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to upload file');
+                }
+
+                const data = await response.json();
+                const columns = data.columns;
+
+                // Populate dropdowns
+                const xColumnSelect = document.getElementById('xColumn');
+                const yColumnsSelect = document.getElementById('yColumns');
+                
+                xColumnSelect.innerHTML = '';
+                yColumnsSelect.innerHTML = '';
+                
+                columns.forEach(column => {
+                    // Add to X-axis dropdown
+                    const xOption = document.createElement('option');
+                    xOption.value = column;
+                    xOption.textContent = column;
+                    xColumnSelect.appendChild(xOption);
+
+                    // Add to Y-axis multi-select
+                    const yOption = document.createElement('option');
+                    yOption.value = column;
+                    yOption.textContent = column;
+                    yColumnsSelect.appendChild(yOption);
+                });
+
+                // Show visualization options
+                document.getElementById('visualizationOptions').style.display = 'block';
+                
+                // Refresh Select2
+                $('#yColumns').trigger('change');
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error uploading file: ' + error.message);
+            }
+        });
+
+        // Form submission for visualization
+        document.getElementById('visualizationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            const fileInput = document.getElementById('file');
+            
+            if (!fileInput.files[0]) {
+                alert('Please select a file first');
+                return;
+            }
+
+            // Get form values
+            const plotType = document.getElementById('plotType').value;
+            const xColumn = document.getElementById('xColumn').value;
+            const yColumns = Array.from($('#yColumns').select2('data')).map(item => item.id);
+            const gridStyle = document.getElementById('gridStyle').value;
+            const colorScheme = document.getElementById('colorScheme').value;
+            const useLogScale = document.getElementById('useLogScale').value;
+            const legendPosition = document.getElementById('legendPosition').value;
+
+            // Log form data for debugging
+            console.log('Form Data:', {
+                plotType,
+                xColumn,
+                yColumns,
+                gridStyle,
+                colorScheme,
+                useLogScale,
+                legendPosition
+            });
+
+            // Append all form data
+            formData.append('data', fileInput.files[0]);
+            formData.append('plot_type', plotType);
+            formData.append('x_column', xColumn);
+            formData.append('y_columns', JSON.stringify(yColumns));
+            formData.append('grid_style', gridStyle);
+            formData.append('color_scheme', colorScheme);
+            formData.append('use_log_scale', useLogScale);
+            formData.append('legend_position', legendPosition);
+
+            try {
+                const response = await fetch('/visualize', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Failed to generate visualization');
+                }
+
+                const data = await response.json();
+                document.getElementById('plot').src = `data:image/png;base64,${data.plot}`;
+                document.getElementById('plotContainer').style.display = 'block';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error generating visualization: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
