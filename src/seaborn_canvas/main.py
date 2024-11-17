@@ -284,6 +284,22 @@ async def download_plot(request: DownloadRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == "__main__":
+def run_cli():
+    """Entry point for the CLI."""
+    import argparse
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    
+    parser = argparse.ArgumentParser(description='SeabornCanvas - A web-based data visualization tool')
+    parser.add_argument('--host', default='127.0.0.1', help='Host to bind to')
+    parser.add_argument('--port', type=int, default=8000, help='Port to bind to')
+    parser.add_argument('--reload', action='store_true', help='Enable auto-reload')
+    
+    args = parser.parse_args()
+    
+    uvicorn.run("seaborn_canvas.main:app", 
+                host=args.host, 
+                port=args.port, 
+                reload=args.reload)
+
+if __name__ == "__main__":
+    run_cli()
