@@ -32,12 +32,17 @@ async function handleFileUpload(e) {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to upload file');
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to upload file');
         }
 
         const data = await response.json();
-        populateColumnDropdowns(data.columns);
-        showVisualizationOptions();
+        if (data.columns) {
+            populateColumnDropdowns(data.columns);
+            showVisualizationOptions();
+        } else {
+            throw new Error('No columns data received');
+        }
 
     } catch (error) {
         console.error('Error:', error);
@@ -64,7 +69,7 @@ function populateColumnDropdowns(columns) {
         const yOption = document.createElement('option');
         yOption.value = column;
         yOption.textContent = column;
-        yColumnsSelect.appendChild(yOption);
+        yColumnsSelect.appendChild(yOption); // Fix: changed 'option' to 'yOption'
     });
 
     // Refresh Select2
@@ -132,7 +137,7 @@ async function handleVisualizationSubmit(e) {
     }));
 
     // Append all form data
-    formData.append('data', fileInput.files[0]);
+    formData.append('file', fileInput.files[0]);
     formData.append('plot_type', formValues.plotType);
     formData.append('plot_title', formValues.plotTitle);
     formData.append('x_column', formValues.xColumn);
@@ -151,7 +156,7 @@ async function handleVisualizationSubmit(e) {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.detail || 'Failed to generate visualization');
+            throw new Error(errorData.error || 'Failed to generate visualization');
         }
 
         const data = await response.json();
