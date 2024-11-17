@@ -127,19 +127,27 @@ async def visualize(
         
         # Set style first
         sns.set_style(grid_style)
+        
+        # Get the color palette - ensure at least one color
+        n_colors = max(1, len(line_configs))
         if color_scheme != "default":
-            sns.set_palette(color_scheme)
+            palette = sns.color_palette(color_scheme, n_colors=n_colors)
+        else:
+            palette = sns.color_palette("deep", n_colors=n_colors)
         
         # Create new figure with seaborn style
         plt.figure(figsize=(float(figure_width), float(figure_height)))
         
         if plot_type == "line":
             print("\nGenerating Line Plot...")
+            print(f"Using color scheme: {color_scheme}")
+            print(f"Number of colors in palette: {len(palette)}")
             
             # Process each y-column
-            for config in line_configs:
+            for idx, config in enumerate(line_configs):
                 y_col = config['column']
                 print(f"\nProcessing column: {y_col}")
+                print(f"Using color index: {idx}")
                 
                 try:
                     # Create a copy of the data for this line
@@ -178,8 +186,39 @@ async def visualize(
                     plot_df = plot_df.sort_values(by=x_column_plot)
                     
                     if len(plot_df) > 0:
-                        # Use seaborn's lineplot
-                        sns.lineplot(data=plot_df, x=x_column_plot, y=y_col, label=y_col, marker='o')
+                        # Get line configuration for this column
+                        line_config = next((config for config in line_configs if config['column'] == y_col), None)
+                        if line_config:
+                            # Use seaborn's lineplot with custom styling and ensure color is from palette
+                            current_color = palette[idx]
+                            print(f"Applying color: {current_color}")
+                            
+                            # Handle marker settings
+                            marker_style = line_config.get('markerStyle', 'o')
+                            marker_size = float(line_config.get('markerSize', 6))
+                            
+                            # If marker style is 'none' or size is 0, disable markers
+                            if marker_style == 'none' or marker_size == 0:
+                                marker_style = None
+                                marker_size = 0
+                            
+                            print(f"Marker style: {marker_style}")
+                            print(f"Marker size: {marker_size}")
+                            
+                            sns.lineplot(
+                                data=plot_df, 
+                                x=x_column_plot, 
+                                y=y_col, 
+                                label=line_config.get('legendLabel', y_col),
+                                linestyle=line_config.get('lineStyle', '-'),
+                                linewidth=float(line_config.get('lineWidth', 2)),
+                                marker=marker_style,
+                                markersize=marker_size,
+                                color=current_color
+                            )
+                        else:
+                            # Fallback to default styling
+                            sns.lineplot(data=plot_df, x=x_column_plot, y=y_col, label=y_col)
                         
                         # If we used numeric mapping, set the original values as x-tick labels
                         if x_column_plot == 'x_numeric':
