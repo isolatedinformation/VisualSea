@@ -1,6 +1,7 @@
 # SeabornCanvas
 
 A user-friendly web application that allows non-programmers to create complex data visualizations using Seaborn without writing any code.
+This app was completely built using Windsurf IDE over a lazy sunday to understand how well AI agents can work with continuous prompting.
 
 ## Features
 
